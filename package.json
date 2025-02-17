@@ -1,0 +1,23 @@
+{
+  "name": "webpro",
+  "version": "1.0.0",
+  "description": "manager room",
+  "main": "index.js",
+  "scripts": {
+    "test": "echo \"Error: no test specified\" && exit 1"
+  },
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/CrefconGG/WEBPRO.git"
+  },
+  "keywords": [],
+  "author": "",
+  "license": "ISC",
+  "bugs": {
+    "url": "https://github.com/CrefconGG/WEBPRO/issues"
+  },
+  "homepage": "https://github.com/CrefconGG/WEBPRO#readme",
+  "dependencies": {
+    "express": "^4.21.2"
+  }
+}
