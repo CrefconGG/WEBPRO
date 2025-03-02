@@ -2,13 +2,21 @@ const express = require('express');
 const sqlite3 = require('sqlite3').verbose();
 const bodyParser = require('body-parser');
 const path = require('path');
-const bcrypt = require('bcrypt'); // เพิ่ม bcrypt
+const bcrypt = require('bcrypt'); 
 
 const app = express();
 const port = 3000;
 
 // ตั้งค่า database
-const db = new sqlite3.Database('./Database/users.db');
+const db = new sqlite3.Database('./database/users.db');
+
+db.run(`CREATE TABLE IF NOT EXISTS users (
+    id INTEGER PRIMARY KEY AUTOINCREMENT,
+    username TEXT NOT NULL,
+    email TEXT NOT NULL,
+    phone TEXT NOT NULL,
+    password TEXT NOT NULL
+)`);
 
 // ตั้งค่า EJS และ middleware
 app.set('view engine', 'ejs');
@@ -17,6 +25,7 @@ app.set('views', path.join(__dirname, 'views'));
 app.use(bodyParser.urlencoded({ extended: true }));
 app.use(express.static(path.join(__dirname, 'public')));
 
+// หน้าแรก
 app.get('/', (req, res) => {
     res.render('index');
 });
@@ -83,3 +92,4 @@ app.post('/register', (req, res) => {
 app.listen(port, () => {
     console.log(`Server กำลังทำงานที่ http://localhost:${port}`);
 });
+
