@@ -18,6 +18,8 @@
   },
   "homepage": "https://github.com/CrefconGG/WEBPRO#readme",
   "dependencies": {
-    "express": "^4.21.2"
+    "ejs": "^3.1.10",
+    "express": "^4.21.2",
+    "sqlite3": "^5.1.7"
   }
 }
