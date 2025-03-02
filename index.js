@@ -2,20 +2,13 @@ const express = require('express');
 const sqlite3 = require('sqlite3').verbose();
 const bodyParser = require('body-parser');
 const path = require('path');
+const bcrypt = require('bcrypt'); // เพิ่ม bcrypt
 
 const app = express();
 const port = 3000;
 
 // ตั้งค่า database
-const db = new sqlite3.Database('./users.db');
-
-// db.run(`CREATE TABLE IF NOT EXISTS users (
-//     id INTEGER PRIMARY KEY AUTOINCREMENT,
-//     username TEXT NOT NULL,
-//     email TEXT NOT NULL,
-//     phone TEXT NOT NULL,
-//     password TEXT NOT NULL
-// )`);
+const db = new sqlite3.Database('./Database/users.db');
 
 // ตั้งค่า EJS และ middleware
 app.set('view engine', 'ejs');
@@ -38,16 +31,22 @@ app.post('/login', (req, res) => {
     const { identifier, password } = req.body;
 
     db.get(
-        `SELECT * FROM users WHERE (username = ? OR email = ?) AND password = ?`,
-        [identifier, identifier, password],
+        `SELECT * FROM users WHERE (username = ? OR email = ?)`,
+        [identifier, identifier],
         (err, user) => {
             if (err) {
                 return res.status(500).send('เกิดข้อผิดพลาดในระบบ');
             }
             if (user) {
-                res.send(`ยินดีต้อนรับ, ${user.username}!`);
+                bcrypt.compare(password, user.password, (err, result) => {
+                    if (result) {
+                        res.send(`ยินดีต้อนรับ, ${user.username}!`);
+                    } else {
+                        res.send('รหัสผ่านไม่ถูกต้อง');
+                    }
+                });
             } else {
-                res.send('ชื่อผู้ใช้/อีเมล หรือรหัสผ่านไม่ถูกต้อง');
+                res.send('ชื่อผู้ใช้/อีเมล ไม่ถูกต้อง');
             }
         }
     );
@@ -62,16 +61,22 @@ app.get('/register', (req, res) => {
 app.post('/register', (req, res) => {
     const { username, email, phone, password } = req.body;
 
-    db.run(
-        `INSERT INTO users (username, email, phone, password) VALUES (?, ?, ?, ?)`,
-        [username, email, phone, password],
-        (err) => {
-            if (err) {
-                return res.status(500).send('เกิดข้อผิดพลาดในการลงทะเบียน');
-            }
-            res.send('ลงทะเบียนสำเร็จ! ไปที่ <a href="/login">เข้าสู่ระบบ</a>');
+    bcrypt.hash(password, 10, (err, hash) => {
+        if (err) {
+            return res.status(500).send('เกิดข้อผิดพลาดในการแฮชรหัสผ่าน');
         }
-    );
+
+        db.run(
+            `INSERT INTO users (username, email, phone, password) VALUES (?, ?, ?, ?)`,
+            [username, email, phone, hash],
+            (err) => {
+                if (err) {
+                    return res.status(500).send('เกิดข้อผิดพลาดในการลงทะเบียน');
+                }
+                res.send('ลงทะเบียนสำเร็จ! ไปที่ <a href="/login">เข้าสู่ระบบ</a>');
+            }
+        );
+    });
 });
 
 // เริ่มต้น server
