@@ -10,13 +10,13 @@ const port = 3000;
 // ตั้งค่า database
 const db = new sqlite3.Database('./database/users.db');
 
-db.run(`CREATE TABLE IF NOT EXISTS users (
-    id INTEGER PRIMARY KEY AUTOINCREMENT,
-    username TEXT NOT NULL,
-    email TEXT NOT NULL,
-    phone TEXT NOT NULL,
-    password TEXT NOT NULL
-)`);
+// db.run(`CREATE TABLE IF NOT EXISTS users (
+//     id INTEGER PRIMARY KEY AUTOINCREMENT,
+//     username TEXT NOT NULL,
+//     email TEXT NOT NULL,
+//     phone TEXT NOT NULL,
+//     password TEXT NOT NULL
+// )`);
 
 // ตั้งค่า EJS และ middleware
 app.set('view engine', 'ejs');
@@ -70,22 +70,35 @@ app.get('/register', (req, res) => {
 app.post('/register', (req, res) => {
     const { username, email, phone, password } = req.body;
 
-    bcrypt.hash(password, 10, (err, hash) => {
-        if (err) {
-            return res.status(500).send('เกิดข้อผิดพลาดในการแฮชรหัสผ่าน');
-        }
-
-        db.run(
-            `INSERT INTO users (username, email, phone, password) VALUES (?, ?, ?, ?)`,
-            [username, email, phone, hash],
-            (err) => {
-                if (err) {
-                    return res.status(500).send('เกิดข้อผิดพลาดในการลงทะเบียน');
-                }
-                res.send('ลงทะเบียนสำเร็จ! ไปที่ <a href="/login">เข้าสู่ระบบ</a>');
+    db.get(
+        `SELECT * FROM users WHERE username = ? OR email = ?`,
+        [username, email],
+        (err, row) => {
+            if (err) {
+                return res.status(500).send('เกิดข้อผิดพลาดในระบบ');
             }
-        );
-    });
+            if (row) {
+                return res.send('ชื่อผู้ใช้หรืออีเมลซ้ำ!');
+            }
+            
+            bcrypt.hash(password, 10, (err, hash) => {
+                if (err) {
+                    return res.status(500).send('เกิดข้อผิดพลาดในการแฮชรหัสผ่าน');
+                }
+
+                db.run(
+                    `INSERT INTO users (username, email, phone, password) VALUES (?, ?, ?, ?)`,
+                    [username, email, phone, hash],
+                    (err) => {
+                        if (err) {
+                            return res.status(500).send('เกิดข้อผิดพลาดในการลงทะเบียน');
+                        }
+                        res.redirect('/login');
+                    }
+                );
+            });
+        }
+    );
 });
 
 // เริ่มต้น server
