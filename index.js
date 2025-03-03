@@ -41,12 +41,14 @@ app.get('/login', (req, res) => {
 
 // เส้นทางหลังจาก login สำเร็จ
 app.get('/index', authMiddleware, (req, res) => {
-    res.render('index', { user: req.session.user });
+    const role = req.session.user?.role || 'user'; // รับ role จาก session
+    res.render('index', { role });
 });
 
 // เส้นทางเฉพาะ Owner
 app.get('/owner-dashboard', authMiddleware, ownerMiddleware, (req, res) => {
-    res.render('owner-dashboard', { user: req.session.user });
+    const role = req.session.user?.role || 'user'; // รับ role จาก session
+    res.render('owner-dashboard', { role });
 });
 
 // เส้นทางจัดการ login
@@ -119,6 +121,13 @@ app.get('/logout', (req, res) => {
         res.redirect('/login');
     });
 });
+
+// จองห้องพัก
+app.get('/booking', authMiddleware, (req, res) => {
+    const role = req.session.user?.role || 'user'; // รับ role จาก session
+    res.render('booking', { role });
+});
+
 
 // เริ่มต้น server
 app.listen(port, () => {
