@@ -46,7 +46,7 @@ app.get('/index', authMiddleware, (req, res) => {
 
 // เส้นทางเฉพาะ Owner
 app.get('/owner-dashboard', authMiddleware, ownerMiddleware, (req, res) => {
-    res.send('ยินดีต้อนรับเจ้าของร้าน!');
+    res.render('owner-dashboard', { user: req.session.user });
 });
 
 // เส้นทางจัดการ login
