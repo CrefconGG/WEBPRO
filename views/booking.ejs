@@ -11,30 +11,7 @@
 <body>
     <div class="d-flex">
         <!-- Left Navbar -->
-        <div class="d-flex flex-column flex-shrink-0 p-3 bg-light" style="width: 280px; height: 100vh;">
-            <span class="fs-4">เมนู</span>
-            <hr>
-            <ul class="nav nav-pills flex-column mb-auto">
-                <li class="nav-item">
-                    <a href="/index" class="nav-link">หน้าหลัก</a>
-                </li>
-                <li>
-                    <a href="/booking" class="nav-link active">จองห้องพัก</a>
-                </li>
-                <% if (role === 'owner') { %>
-                    <li>
-                        <a href="/owner-dashboard" class="nav-link">เพิ่ม</a>
-                    </li>
-                <% } %>
-                
-                <li>
-                    <a href="#" class="nav-link" onclick="showPage('payment')">ชำระค่าเช่าและค่าบริการ</a>
-                </li>
-                <li>
-                    <a class="btn btn-danger" href="/logout" role="button">ออกจากระบบ</a>
-                </li>
-            </ul>
-        </div>
+        <%- include("menu") %>
 
         <!-- Main Content -->
         <div class="container mt-5" id="main-content">

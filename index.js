@@ -65,7 +65,7 @@ app.post('/login', (req, res) => {
                     if (result) {
                         req.session.user = user;
                         if (user.role === 'owner') {
-                            res.redirect('/owner-dashboard');
+                            res.redirect('/index');
                         } else {
                             res.redirect('/index');
                         }
@@ -128,10 +128,61 @@ app.get('/booking', authMiddleware, (req, res) => {
     res.render('booking', { role });
 });
 
-// ------------------------------------------------- 66070257 ------------------------------------------------- //
+// เส้นทางแสดงรายการชำระเงิน
+app.get('/payment', authMiddleware, (req, res) => {
+    const tenantId = req.session.user?.user_id;
+    
+    db.all(
+        `SELECT * FROM payments WHERE contract_id IN (SELECT contract_id FROM rental_contracts WHERE tenant_id = ?)`,
+        [tenantId],
+        (err, payments) => {
+            if (err) {
+                return res.status(500).send('เกิดข้อผิดพลาดในการดึงข้อมูลการชำระเงิน');
+            }
+            res.render('payment', { payments, role: req.session.user.role });
+        }
+    );
+});
 
-app.get('/edit_room', (req, res) => {
-    res.render('edit_room');
+// เส้นทางจัดการการชำระเงิน
+app.post('/payment/pay', authMiddleware, (req, res) => {
+    const { payment_id } = req.body;
+
+    db.run(
+        `UPDATE payments SET status = 'Completed' WHERE payment_id = ?`,
+        [payment_id],
+        (err) => {
+            if (err) {
+                return res.status(500).send('เกิดข้อผิดพลาดในการอัปเดตสถานะการชำระเงิน');
+            }
+            res.redirect('/payment');
+        }
+    );
+});
+
+// เส้นทางสำหรับเจ้าของเพิ่มรายการชำระ
+app.get('/notify-rent', authMiddleware, ownerMiddleware, (req, res) => {
+    res.render('notify-rent', { role: req.session.user?.role });
+});
+
+app.post('/notify-rent', authMiddleware, (req, res) => {
+    const { contract_id, amount, electricity_bill, water_bill, payment_date } = req.body;
+
+    if (req.session.user?.role !== 'owner') {
+        return res.status(403).send('คุณไม่มีสิทธิ์เข้าถึงฟังก์ชันนี้');
+    }
+
+    db.run(
+        `INSERT INTO payments (contract_id, amount, electricity_bill, water_bill, payment_date, status) 
+         VALUES (?, ?, ?, ?, ?, 'Pending')`,
+        [contract_id, amount, electricity_bill, water_bill, payment_date],
+        (err) => {
+            if (err) {
+                return res.status(500).send('เกิดข้อผิดพลาดในการเพิ่มข้อมูลการแจ้งค่าใช้จ่าย');
+            }
+            res.redirect('/notify-rent');
+        }
+    );
 });
 
 // เริ่มต้น server

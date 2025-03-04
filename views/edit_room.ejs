@@ -1,66 +1,52 @@
-<%- include("head") %> <%- include("nav") %>
+<!DOCTYPE html>
+<html lang="en">
 
-<div class="container mt-5">
-  <h2 class="text-center">เพิ่ม/แก้ไขข้อมูลห้องพัก</h2>
-  <form action="save_room.php" method="post" class="mt-4">
-    <div class="mb-3">
-      <label for="room_id" class="form-label">หมายเลขห้อง:</label>
-      <input
-        type="text"
-        id="room_id"
-        name="room_id"
-        class="form-control"
-        pattern="[0-9]{1,5}"
-        title="หมายเลขห้องต้องเป็นตัวเลข 1-5 หลัก"
-        required
-      />
-    </div>
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/css/bootstrap.min.css" rel="stylesheet">
+  <title>เพิ่ม/แก้ไขข้อมูลห้องพัก</title>
+</head>
 
-    <div class="mb-3">
-      <label for="room_name" class="form-label">ชื่อห้อง:</label>
-      <input
-        type="text"
-        id="room_name"
-        name="room_name"
-        class="form-control"
-        maxlength="50"
-        required
-      />
-    </div>
+<body>
+  <div class="d-flex">
+    <!-- Left Navbar -->
+    <%- include("menu") %>
 
-    <div class="mb-3">
-      <label for="description" class="form-label">รายละเอียดห้อง:</label>
-      <textarea
-        id="description"
-        name="description"
-        rows="4"
-        class="form-control"
-        required
-      ></textarea>
-    </div>
+    <!-- Main Content -->
+    <div class="container mt-5">
+      <h1 class="mb-4"><%= room ? 'แก้ไขห้องพัก' : 'เพิ่มห้องพัก' %></h1>
+  
+      <form action="<%= room ? '/rooms/edit/' + room.room_id : '/rooms/add' %>" method="POST" class="needs-validation" novalidate>
+          <div class="mb-3">
+              <label for="price_per_month" class="form-label">ค่าเช่ารายเดือน (บาท):</label>
+              <input type="number" class="form-control" name="price_per_month" value="<%= room ? room.price_per_month : '' %>" step="0.01" required>
+          </div>
+  
+          <div class="mb-3">
+              <label for="electricity_bill" class="form-label">ค่าไฟต่อหน่วย (บาท):</label>
+              <input type="number" class="form-control" name="electricity_bill" value="<%= room ? room.electricity_bill : '' %>" step="0.01" required>
+          </div>
+  
+          <div class="mb-3">
+              <label for="water_bill" class="form-label">ค่าน้ำต่อหน่วย (บาท):</label>
+              <input type="number" class="form-control" name="water_bill" value="<%= room ? room.water_bill : '' %>" step="0.01" required>
+          </div>
+  
+          <div class="mb-3">
+              <label for="status" class="form-label">สถานะห้อง:</label>
+              <select class="form-select" name="status" required>
+                  <option value="available" <%= room && room.status === 'available' ? 'selected' : '' %>>ว่าง</option>
+                  <option value="occupied" <%= room && room.status === 'occupied' ? 'selected' : '' %>>มีผู้เช่า</option>
+                  <option value="maintenance" <%= room && room.status === 'maintenance' ? 'selected' : '' %>>กำลังซ่อม</option>
+              </select>
+          </div>
+  
+          <button type="submit" class="btn btn-primary"><%= room ? 'บันทึกการเปลี่ยนแปลง' : 'เพิ่มห้องพัก' %></button>
+          <a href="/rooms" class="btn btn-secondary">ยกเลิก</a>
+      </form>
+    </div>  
+  </div>
+</body>
 
-    <div class="mb-3">
-      <label for="price" class="form-label">ราคา (บาท):</label>
-      <input
-        type="number"
-        id="price"
-        name="price"
-        class="form-control"
-        min="0"
-        required
-      />
-    </div>
-
-    <div class="mb-3">
-      <label for="availability" class="form-label">สถานะการให้เช่า:</label>
-      <select id="availability" name="availability" class="form-select">
-        <option value="available">ว่าง</option>
-        <option value="occupied">ไม่ว่าง</option>
-      </select>
-    </div>
-
-    <button type="submit" class="btn btn-primary w-100">บันทึกข้อมูล</button>
-  </form>
-</div>
-
-<%- include("foot") %>
+</html>
