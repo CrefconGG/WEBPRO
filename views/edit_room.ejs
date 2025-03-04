@@ -1,0 +1,66 @@
+<%- include("head") %> <%- include("nav") %>
+
+<div class="container mt-5">
+  <h2 class="text-center">เพิ่ม/แก้ไขข้อมูลห้องพัก</h2>
+  <form action="save_room.php" method="post" class="mt-4">
+    <div class="mb-3">
+      <label for="room_id" class="form-label">หมายเลขห้อง:</label>
+      <input
+        type="text"
+        id="room_id"
+        name="room_id"
+        class="form-control"
+        pattern="[0-9]{1,5}"
+        title="หมายเลขห้องต้องเป็นตัวเลข 1-5 หลัก"
+        required
+      />
+    </div>
+
+    <div class="mb-3">
+      <label for="room_name" class="form-label">ชื่อห้อง:</label>
+      <input
+        type="text"
+        id="room_name"
+        name="room_name"
+        class="form-control"
+        maxlength="50"
+        required
+      />
+    </div>
+
+    <div class="mb-3">
+      <label for="description" class="form-label">รายละเอียดห้อง:</label>
+      <textarea
+        id="description"
+        name="description"
+        rows="4"
+        class="form-control"
+        required
+      ></textarea>
+    </div>
+
+    <div class="mb-3">
+      <label for="price" class="form-label">ราคา (บาท):</label>
+      <input
+        type="number"
+        id="price"
+        name="price"
+        class="form-control"
+        min="0"
+        required
+      />
+    </div>
+
+    <div class="mb-3">
+      <label for="availability" class="form-label">สถานะการให้เช่า:</label>
+      <select id="availability" name="availability" class="form-select">
+        <option value="available">ว่าง</option>
+        <option value="occupied">ไม่ว่าง</option>
+      </select>
+    </div>
+
+    <button type="submit" class="btn btn-primary w-100">บันทึกข้อมูล</button>
+  </form>
+</div>
+
+<%- include("foot") %>
