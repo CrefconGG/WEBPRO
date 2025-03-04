@@ -128,6 +128,11 @@ app.get('/booking', authMiddleware, (req, res) => {
     res.render('booking', { role });
 });
 
+// ------------------------------------------------- 66070257 ------------------------------------------------- //
+
+app.get('/edit_room', (req, res) => {
+    res.render('edit_room');
+});
 
 // เริ่มต้น server
 app.listen(port, () => {
