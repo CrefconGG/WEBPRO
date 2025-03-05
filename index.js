@@ -193,23 +193,80 @@ app.post('/notify-rent', authMiddleware, ownerMiddleware, (req, res) => {
     );
 });
 
-// ลบการชำระเงินที่มีสถานะ Pending
-app.post('/delete-payment', authMiddleware, ownerMiddleware, (req, res) => {
+// ย้ายการชำระเงินไปยังตาราง archived_payments
+app.post('/archive-payment', authMiddleware, ownerMiddleware, (req, res) => {
     const { payment_id } = req.body;
 
     if (req.session.user?.role !== 'owner') {
         return res.status(403).send('คุณไม่มีสิทธิ์เข้าถึงฟังก์ชันนี้');
     }
 
-    // ลบรายการการชำระเงินที่มีสถานะ Pending
-    db.run('DELETE FROM payments WHERE payment_id = ? AND status = "Waiting"', [payment_id], (err) => {
+    // ดึงข้อมูลการชำระเงินจาก payments
+    db.get('SELECT * FROM payments WHERE payment_id = ? AND status = "Waiting"', [payment_id], (err, payment) => {
         if (err) {
-            return res.status(500).send('เกิดข้อผิดพลาดในการลบรายการชำระเงิน');
+            return res.status(500).send('เกิดข้อผิดพลาดในการดึงข้อมูลการชำระเงิน');
         }
-        res.redirect('/notify-rent');
+
+        if (!payment) {
+            return res.status(404).send('ไม่พบการชำระเงินที่ต้องการ');
+        }
+
+        // ย้ายข้อมูลไปยัง payment_history
+        const { payment_id, contract_id, amount, electricity_bill, water_bill, payment_date, status } = payment;
+        db.run('INSERT INTO payment_history (payment_id, contract_id, amount, electricity_bill, water_bill, payment_date, status) VALUES (?, ?, ?, ?, ?, ?, ?)',
+            [payment_id, contract_id, amount, electricity_bill, water_bill, payment_date, 'Complete'], (err) => {
+                if (err) {
+                    return res.status(500).send('เกิดข้อผิดพลาดในการย้ายข้อมูล');
+                }
+
+                // ลบข้อมูลจาก payments หลังจากย้ายสำเร็จ
+                db.run('DELETE FROM payments WHERE payment_id = ? AND status = "Waiting"', [payment_id], (err) => {
+                    if (err) {
+                        return res.status(500).send('เกิดข้อผิดพลาดในการลบข้อมูลการชำระเงิน');
+                    }
+                    res.redirect('/notify-rent');
+                });
+            });
     });
 });
+// ประวัติการชำระ
+app.get('/payment-history', authMiddleware, (req, res) => {
+    const tenantId = req.session.user?.user_id;
+    const userRole = req.session.user?.role;
 
+    // ตรวจสอบว่า user มี tenantId และ role หรือไม่
+    if (!tenantId || !userRole) {
+        return res.status(400).send('ข้อมูลผู้ใช้ไม่ถูกต้อง');
+    }
+
+    // เช็คหากเป็น user หรือ owner ก็สามารถดึงข้อมูลได้
+    let query = '';
+    let params = [];
+
+    if (userRole === 'user') {
+        query = `SELECT * FROM payment_history WHERE contract_id IN (SELECT contract_id FROM rental_contracts WHERE tenant_id = ?)`;
+        params = [tenantId];
+    } else if (userRole === 'owner') {
+        query = `SELECT * FROM payment_history`;
+        params = [];
+    }
+
+    console.log("Query: ", query); // เพิ่มการพิมพ์ query ที่ใช้งาน
+    console.log("Params: ", params); // เพิ่มการพิมพ์ parameters ที่ใช้
+
+    db.all(query, params, (err, payments) => {
+        if (err) {
+            console.error("Database error: ", err); // เพิ่มการพิมพ์ error จากฐานข้อมูล
+            return res.status(500).send('เกิดข้อผิดพลาดในการดึงข้อมูลการชำระเงิน');
+        }
+
+        if (!payments) {
+            return res.status(404).send('ไม่พบข้อมูลการชำระเงิน');
+        }
+
+        res.render('payment-history', { payments, role: userRole });
+    });
+});
 
 // เริ่มต้น server
 app.listen(port, () => {

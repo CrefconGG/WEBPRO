@@ -3,26 +3,42 @@
     <hr>
     <ul class="nav nav-pills flex-column mb-auto">
         <li class="nav-item">
-            <a href="/index" class="nav-link">หน้าหลัก</a>
+            <a href="/index" class="nav-link" id="nav-index">หน้าหลัก</a>
         </li>
         <% if (role === 'user') { %>
             <li>
-                <a href="/booking" class="nav-link">จองห้องพัก</a>
+                <a href="/booking" class="nav-link" id="nav-booking">จองห้องพัก</a>
             </li>
             <li>
-                <a href="/payment" class="nav-link">ชำระเงิน</a>
+                <a href="/payment" class="nav-link" id="nav-payment">ชำระเงิน</a>
             </li>
         <% } %>
         <% if (role === 'owner') { %>
             <li>
-                <a href="/edit_room" class="nav-link">เพิ่ม/แก้ไข</a>
+                <a href="/room" class="nav-link" id="nav-edit-room">เพิ่ม/แก้ไขห้องพัก</a>
             </li>
             <li>
-                <a href="/notify-rent" class="nav-link">แจ้งค่าเช่าและค่าบริการ</a>
+                <a href="/notify-rent" class="nav-link" id="nav-notify-rent">แจ้งค่าเช่าและค่าบริการ</a>
             </li>
         <% } %>
         <li>
-            <a class="btn btn-danger" href="/logout" role="button">ออกจากระบบ</a>
+            <a href="/payment-history" class="nav-link" id="nav-booking">ประวัติการชำระ</a>
         </li>
+        <div class="mt-auto">
+            <a class="btn btn-danger w-100" href="/logout" role="button">ออกจากระบบ</a>
+        </div>
     </ul>
 </div>
+
+<script>
+    window.onload = function() {
+        var currentPath = window.location.pathname;
+        var links = document.querySelectorAll('.nav-link');
+        
+        links.forEach(function(link) {
+            if (link.getAttribute('href') === currentPath) {
+                link.classList.add('active');
+            }
+        });
+    };
+</script>

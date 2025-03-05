@@ -74,7 +74,7 @@
                                 <td><%= payment.electricity_bill.toFixed(2) %></td>
                                 <td><%= payment.water_bill.toFixed(2) %></td>
                                 <td>
-                                    <form action="/delete-payment" method="POST" style="display:inline;">
+                                    <form action="/archive-payment" method="POST" style="display:inline;">
                                         <input type="hidden" name="payment_id" value="<%= payment.payment_id %>">
                                         <button type="submit" class="btn btn-danger btn-sm">ยืนยัน</button>
                                     </form>
