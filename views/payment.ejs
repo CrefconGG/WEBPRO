@@ -1,4 +1,3 @@
-<!-- payment.ejs -->
 <!DOCTYPE html>
 <html lang="en">
 <head>
@@ -19,14 +18,12 @@
             <table class="table table-bordered table-striped">
                 <thead class="table-dark">
                     <tr>
-                        <th>Payment ID</th>
-                        <th>Contract ID</th>
-                        <th>Amount</th>
-                        <th>Payment Date</th>
-                        <th>Electricity Bill</th>
-                        <th>Water Bill</th>
-                        <th>Status</th>
-                        <th>Action</th>
+                        <th>จำนวน</th>
+                        <th>กำหนดการชำระ</th>
+                        <th>ค่าไฟ</th>
+                        <th>ค่าน้ำ</th>
+                        <th>สถานะ</th>
+                        <th>ดำเนินการ</th>
                     </tr>
                 </thead>
                 <tbody>
@@ -37,8 +34,6 @@
                     <% } else { %>
                         <% payments.forEach(payment => { %>
                         <tr>
-                            <td><%= payment.payment_id %></td>
-                            <td><%= payment.contract_id %></td>
                             <td><%= payment.amount.toFixed(2) %></td>
                             <td><%= payment.payment_date %></td>
                             <td><%= payment.electricity_bill.toFixed(2) %></td>
@@ -46,16 +41,14 @@
                             <td>
                                 <% if (payment.status === 'Pending') { %>
                                     <span class="badge bg-warning text-dark">Pending</span>
+                                <% } else if (payment.status === 'Waiting') { %>
+                                    <span class="badge bg-info text-dark">Waiting</span>
                                 <% } else { %>
                                     <span class="badge bg-success">Completed</span>
                                 <% } %>
                             </td>
                             <td>
-                                <% if (payment.status === 'Pending') { %>
-                                    <a href="/pay/<%= payment.payment_id %>" class="btn btn-primary btn-sm">ชำระเงิน</a>
-                                <% } else { %>
-                                    <span class="badge bg-success">Completed</span>
-                                <% } %>
+                                <button class="btn btn-primary btn-sm" onclick="showPaymentModal('<%= payment.payment_id %>')">ชำระเงิน</button>
                             </td>
                         </tr>
                         <% }) %>
@@ -64,6 +57,30 @@
             </table>
         </div>
     </div>
+    <div class="modal fade" id="paymentModal" tabindex="-1" aria-labelledby="paymentModalLabel" aria-hidden="true">
+        <div class="modal-dialog">
+            <div class="modal-content">
+                <div class="modal-header">
+                    <h5 class="modal-title" id="paymentModalLabel">อัปเดตสถานะการชำระเงิน</h5>
+                    <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
+                </div>
+                <div class="modal-body">
+                    <form id="paymentForm" action="/payment/pay" method="POST">
+                        <input type="hidden" name="payment_id" id="paymentIdInput">
+                        <button type="submit" class="btn btn-success">ยืนยันการชำระเงิน</button>
+                    </form>                    
+                </div>
+            </div>
+        </div>
+    </div>    
+    <script>
+        function showPaymentModal(paymentId) {
+            document.getElementById('paymentIdInput').value = paymentId;
+            var paymentModal = new bootstrap.Modal(document.getElementById('paymentModal'));
+            paymentModal.show();
+        }
+    </script>
+
     <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.3/dist/js/bootstrap.bundle.min.js"></script>
 </body>
 </html>

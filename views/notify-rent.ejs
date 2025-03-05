@@ -1,4 +1,4 @@
-<!-- notifyFees.ejs -->
+<!-- notify-rent.ejs -->
 <!DOCTYPE html>
 <html lang="en">
 <head>
@@ -49,8 +49,44 @@
                     </form>
                 </div>
             </div>
+
+            <h2 class="mt-5 text-center">รายการชำระเงินที่รอการยืนยัน</h2>
+            <table class="table table-bordered mt-3">
+                <thead class="table-dark">
+                    <tr>
+                        <th>จำนวน</th>
+                        <th>กำหนดการชำระ</th>
+                        <th>ค่าไฟ</th>
+                        <th>ค่าน้ำ</th>
+                        <th>สถานะ</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    <% if (payments.length === 0) { %>
+                        <tr>
+                            <td colspan="7" class="text-center">ไม่มีรายการที่รอการยืนยัน</td>
+                        </tr>
+                    <% } else { %>
+                        <% payments.forEach(payment => { %>
+                            <tr>
+                                <td><%= payment.amount.toFixed(2) %></td>
+                                <td><%= payment.payment_date %></td>
+                                <td><%= payment.electricity_bill.toFixed(2) %></td>
+                                <td><%= payment.water_bill.toFixed(2) %></td>
+                                <td>
+                                    <form action="/delete-payment" method="POST" style="display:inline;">
+                                        <input type="hidden" name="payment_id" value="<%= payment.payment_id %>">
+                                        <button type="submit" class="btn btn-danger btn-sm">ยืนยัน</button>
+                                    </form>
+                                </td>
+                            </tr>
+                        <% }) %>
+                    <% } %>
+                </tbody>
+            </table>
         </div>
     </div>
+
     <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.3/dist/js/bootstrap.bundle.min.js"></script>
 </body>
 </html>

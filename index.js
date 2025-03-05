@@ -147,9 +147,8 @@ app.get('/payment', authMiddleware, (req, res) => {
 // เส้นทางจัดการการชำระเงิน
 app.post('/payment/pay', authMiddleware, (req, res) => {
     const { payment_id } = req.body;
-
     db.run(
-        `UPDATE payments SET status = 'Completed' WHERE payment_id = ?`,
+        `UPDATE payments SET status = 'Waiting' WHERE payment_id = ?`,
         [payment_id],
         (err) => {
             if (err) {
@@ -162,10 +161,19 @@ app.post('/payment/pay', authMiddleware, (req, res) => {
 
 // เส้นทางสำหรับเจ้าของเพิ่มรายการชำระ
 app.get('/notify-rent', authMiddleware, ownerMiddleware, (req, res) => {
-    res.render('notify-rent', { role: req.session.user?.role });
+    if (req.session.user?.role !== 'owner') {
+        return res.status(403).send('คุณไม่มีสิทธิ์เข้าถึงฟังก์ชันนี้');
+    }
+    
+    db.all('SELECT * FROM payments WHERE status = "Waiting"', (err, payments) => {
+        if (err) {
+            return res.status(500).send('เกิดข้อผิดพลาดในการดึงข้อมูลการชำระเงิน');
+        }
+        res.render('notify-rent', { role: req.session.user?.role, payments });
+    });
 });
 
-app.post('/notify-rent', authMiddleware, (req, res) => {
+app.post('/notify-rent', authMiddleware, ownerMiddleware, (req, res) => {
     const { contract_id, amount, electricity_bill, water_bill, payment_date } = req.body;
 
     if (req.session.user?.role !== 'owner') {
@@ -184,6 +192,24 @@ app.post('/notify-rent', authMiddleware, (req, res) => {
         }
     );
 });
+
+// ลบการชำระเงินที่มีสถานะ Pending
+app.post('/delete-payment', authMiddleware, ownerMiddleware, (req, res) => {
+    const { payment_id } = req.body;
+
+    if (req.session.user?.role !== 'owner') {
+        return res.status(403).send('คุณไม่มีสิทธิ์เข้าถึงฟังก์ชันนี้');
+    }
+
+    // ลบรายการการชำระเงินที่มีสถานะ Pending
+    db.run('DELETE FROM payments WHERE payment_id = ? AND status = "Waiting"', [payment_id], (err) => {
+        if (err) {
+            return res.status(500).send('เกิดข้อผิดพลาดในการลบรายการชำระเงิน');
+        }
+        res.redirect('/notify-rent');
+    });
+});
+
 
 // เริ่มต้น server
 app.listen(port, () => {
