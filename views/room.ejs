@@ -1,52 +1,81 @@
 <!DOCTYPE html>
-<html lang="en">
-
+<html lang="th">
 <head>
-  <meta charset="UTF-8" />
-  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-  <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/css/bootstrap.min.css" rel="stylesheet">
-  <title>เพิ่ม/แก้ไขข้อมูลห้องพัก</title>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>ข้อมูลห้องพัก</title>
+    <link rel="stylesheet" href="/styles.css">
+    <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/css/bootstrap.min.css" rel="stylesheet">
 </head>
-
 <body>
-  <div class="d-flex">
-    <!-- Left Navbar -->
-    <%- include("menu") %>
+    <div class="d-flex">
+        <!-- Left Navbar -->
+        <%- include('menu') %>  <!-- เมนูข้าง -->
 
-    <!-- Main Content -->
-    <div class="container mt-5">
-      <h1 class="mb-4"><%= room ? 'แก้ไขห้องพัก' : 'เพิ่มห้องพัก' %></h1>
-  
-      <form action="<%= room ? '/rooms/edit/' + room.room_id : '/rooms/add' %>" method="POST" class="needs-validation" novalidate>
-          <div class="mb-3">
-              <label for="price_per_month" class="form-label">ค่าเช่ารายเดือน (บาท):</label>
-              <input type="number" class="form-control" name="price_per_month" value="<%= room ? room.price_per_month : '' %>" step="0.01" required>
+        <!-- Main Content -->
+        <div class="container mt-5" id="main-content">
+            <h1 class="text-center">ข้อมูลห้องพัก</h1>
+            <p class="text-center">ดูข้อมูลห้องพักที่มีในปัจจุบัน</p>
+
+            <div class="row">
+                <% if (rooms.length === 0) { %>
+                    <div class="col-12 text-center">
+                        <p>ไม่พบข้อมูลห้องพัก</p>
+                    </div>
+                <% } else { %>
+                    <% rooms.forEach(room => { %>
+                        <div class="col-md-4 mb-4">
+                            <div class="card">
+                                <div class="card-body">
+                                    <h5 class="card-title"><%= room.room_name %></h5>
+                                    <p><strong>ขนาดห้อง:</strong> <%= room.size %> ตารางเมตร</p>
+                                    <p><strong>ราคาเช่า:</strong> <%= room.rent_price %> บาท/เดือน</p>
+                                    <p><strong>สถานะ:</strong> 
+                                        <% if (room.status === 'Available') { %>
+                                            <span class="badge bg-success">ว่าง</span>
+                                        <% } else if (room.status === 'Rented') { %>
+                                            <span class="badge bg-danger">เช่าแล้ว</span>
+                                        <% } else { %>
+                                            <span class="badge bg-warning">ไม่พร้อมใช้งาน</span>
+                                        <% } %>
+                                    </p>
+                                    <a href="/edit-room/<%= room.room_id %>" class="btn btn-primary">แก้ไขข้อมูลห้อง</a>
+                                </div>
+                            </div>
+                        </div>
+                    <% }) %>
+                <% } %>
+            </div>
+            <div class="card">
+              <div class="card-body">
+                <h1>เพิ่มห้องพักใหม่</h1>
+                <form action="/add-room" method="POST">
+                    <div class="mb-3">
+                        <label for="room_id" class="form-label">รหัสห้อง</label>
+                        <input type="number" class="form-control" id="room_id" name="room_id" required>
+                    </div>
+                    <div class="mb-3">
+                        <label for="price_per_month" class="form-label">ราคาเช่า (บาท/เดือน)</label>
+                        <input type="number" step="0.01" class="form-control" id="price_per_month" name="price_per_month" required>
+                    </div>
+                    <div class="mb-3">
+                        <label for="additional_service_fee" class="form-label">ค่าบริการเสริม (บาท)</label>
+                        <input type="number" step="0.01" class="form-control" id="additional_service_fee" name="additional_service_fee" required>
+                    </div>
+                    <div class="mb-3">
+                        <label for="maintenance_fee" class="form-label">ค่าบำรุงรักษาห้อง (บาท)</label>
+                        <input type="number" step="0.01" class="form-control" id="maintenance_fee" name="maintenance_fee" required>
+                    </div>
+                    <!-- ซ่อนสถานะห้องเนื่องจากต้องการให้เป็น 'Available' เสมอ -->
+                    <input type="hidden" name="status" value="Available">
+                    <button type="submit" class="btn btn-primary">เพิ่มห้องพัก</button>
+                </form>
+              </div>
           </div>
-  
-          <div class="mb-3">
-              <label for="electricity_bill" class="form-label">ค่าไฟต่อหน่วย (บาท):</label>
-              <input type="number" class="form-control" name="electricity_bill" value="<%= room ? room.electricity_bill : '' %>" step="0.01" required>
-          </div>
-  
-          <div class="mb-3">
-              <label for="water_bill" class="form-label">ค่าน้ำต่อหน่วย (บาท):</label>
-              <input type="number" class="form-control" name="water_bill" value="<%= room ? room.water_bill : '' %>" step="0.01" required>
-          </div>
-  
-          <div class="mb-3">
-              <label for="status" class="form-label">สถานะห้อง:</label>
-              <select class="form-select" name="status" required>
-                  <option value="available" <%= room && room.status === 'available' ? 'selected' : '' %>>ว่าง</option>
-                  <option value="occupied" <%= room && room.status === 'occupied' ? 'selected' : '' %>>มีผู้เช่า</option>
-                  <option value="maintenance" <%= room && room.status === 'maintenance' ? 'selected' : '' %>>กำลังซ่อม</option>
-              </select>
-          </div>
-  
-          <button type="submit" class="btn btn-primary"><%= room ? 'บันทึกการเปลี่ยนแปลง' : 'เพิ่มห้องพัก' %></button>
-          <a href="/rooms" class="btn btn-secondary">ยกเลิก</a>
-      </form>
-    </div>  
-  </div>
+        </div>
+    </div>
+
+    <!-- Bootstrap JS -->
+    <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/js/bootstrap.bundle.min.js"></script>
 </body>
-
 </html>

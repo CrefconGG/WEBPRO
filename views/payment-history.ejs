@@ -20,6 +20,7 @@
             <table class="table table-bordered table-striped">
                 <thead class="table-dark">
                     <tr>
+                        <th>ชื่อผู้เช่า</th>
                         <th>จำนวน</th>
                         <th>กำหนดการชำระ</th>
                         <th>ค่าไฟ</th>
@@ -30,11 +31,12 @@
                 <tbody>
                     <% if (payments.length === 0) { %>
                         <tr>
-                            <td colspan="5" class="text-center">ไม่พบข้อมูลการชำระเงิน</td>
+                            <td colspan="6" class="text-center">ไม่พบข้อมูลการชำระเงิน</td>
                         </tr>
                     <% } else { %>
                         <% payments.forEach(payment => { %>
                         <tr>
+                            <td><%= payment.tenant_name %></td>
                             <td><%= payment.amount.toFixed(2) %></td>
                             <td><%= payment.payment_date %></td>
                             <td><%= payment.electricity_bill.toFixed(2) %></td>

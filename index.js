@@ -239,15 +239,34 @@ app.get('/payment-history', authMiddleware, (req, res) => {
         return res.status(400).send('ข้อมูลผู้ใช้ไม่ถูกต้อง');
     }
 
-    // เช็คหากเป็น user หรือ owner ก็สามารถดึงข้อมูลได้
     let query = '';
     let params = [];
 
     if (userRole === 'user') {
-        query = `SELECT * FROM payment_history WHERE contract_id IN (SELECT contract_id FROM rental_contracts WHERE tenant_id = ?)`;
+        query = `
+            SELECT 
+                payment_history.*, 
+                users.username AS tenant_name 
+            FROM 
+                payment_history
+            JOIN 
+                rental_contracts ON payment_history.contract_id = rental_contracts.contract_id
+            JOIN 
+                users ON rental_contracts.tenant_id = users.user_id
+            WHERE 
+                rental_contracts.tenant_id = ?`;
         params = [tenantId];
     } else if (userRole === 'owner') {
-        query = `SELECT * FROM payment_history`;
+        query = `
+            SELECT 
+                payment_history.*, 
+                users.username AS tenant_name 
+            FROM 
+                payment_history
+            JOIN 
+                rental_contracts ON payment_history.contract_id = rental_contracts.contract_id
+            JOIN 
+                users ON rental_contracts.tenant_id = users.user_id`;
         params = [];
     }
 
@@ -265,6 +284,43 @@ app.get('/payment-history', authMiddleware, (req, res) => {
         }
 
         res.render('payment-history', { payments, role: userRole });
+    });
+});
+// จัดการห้อง
+app.get('/rooms', authMiddleware, ownerMiddleware, (req, res) => {
+    const userRole = req.session.user?.role;
+
+    if (userRole !== 'owner') {
+        return res.status(403).send('คุณไม่มีสิทธิ์เข้าถึงฟังก์ชันนี้');
+    }
+
+    // ดึงข้อมูลห้องพักจากฐานข้อมูล
+    const query = 'SELECT * FROM rooms';
+    db.all(query, [], (err, rooms) => {
+        if (err) {
+            console.error("Database error: ", err);
+            return res.status(500).send('เกิดข้อผิดพลาดในการดึงข้อมูลห้องพัก');
+        }
+
+        res.render('room', { rooms, role: userRole }); // ส่ง role ไปยัง EJS
+    });
+});
+// เพิ่มห้อง
+app.post('/add-room', (req, res) => {
+    const { room_id, price_per_month, additional_service_fee, maintenance_fee } = req.body;
+
+    // เชื่อมต่อกับฐานข้อมูลเพื่อเพิ่มห้องใหม่
+    const query = `INSERT INTO rooms (room_id, price_per_month, additional_service_fee, maintenance_fee, tenant_id, status) 
+                   VALUES (?, ?, ?, ?, NULL, ?)`;
+
+    const params = [room_id, price_per_month, additional_service_fee, maintenance_fee, 'Available'];
+
+    db.run(query, params, function(err) {
+        if (err) {
+            console.error('Error inserting room: ', err);
+            return res.status(500).send('เกิดข้อผิดพลาดในการเพิ่มห้อง');
+        }
+        res.redirect('/rooms');
     });
 });
 
