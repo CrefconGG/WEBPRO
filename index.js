@@ -281,7 +281,7 @@ app.get('/payment-history', authMiddleware, (req, res) => {
         res.render('payment-history', { payments, role: userRole });
     });
 });
-// จัดการห้อง
+// // จัดการห้อง
 app.get('/rooms', authMiddleware, ownerMiddleware, (req, res) => {
     const userRole = req.session.user?.role;
 
@@ -364,6 +364,94 @@ app.get('/delete-room/:room_id', (req, res) => {
         res.redirect('/rooms');  // กลับไปที่หน้าแสดงห้อง
     });
 });
+// ห้องสำหรับจอง
+app.get('/book', authMiddleware, (req, res) => {
+    const userRole = req.session.user?.role;
+
+    if (userRole !== 'user') {
+        return res.status(403).send('คุณไม่มีสิทธิ์เข้าถึงฟังก์ชันนี้');
+    }
+
+    // ดึงข้อมูลห้องพักจากฐานข้อมูล
+    const query = 'SELECT * FROM rooms';
+    db.all(query, [], (err, rooms) => {
+        if (err) {
+            console.error("Database error: ", err);
+            return res.status(500).send('เกิดข้อผิดพลาดในการดึงข้อมูลห้องพัก');
+        }
+
+        res.render('booking', { rooms, role: userRole }); // ส่ง role ไปยัง EJS
+    });
+});
+// จองห้อง
+app.post('/booking-room', (req, res) => {
+    const room_id = req.body.room_id; // รับ room_id ที่ผู้ใช้เลือก
+    const user_id = req.session.user?.user_id; // รับ user_id จาก session
+
+    if (!user_id) {
+        return res.status(403).send('คุณต้องล็อกอินเพื่อจองห้อง');
+    }
+
+    // คำสั่ง SQL เพื่ออัปเดต tenant_id และสถานะห้อง
+    const query = `
+        UPDATE rooms
+        SET tenant_id = ?, status = 'Rented'
+        WHERE room_id = ? AND status = 'Available'
+    `;
+
+    // เรียกใช้คำสั่ง SQL
+    db.run(query, [user_id, room_id], function(err) {
+        if (err) {
+            console.error("Error booking room: ", err);
+            return res.status(500).send('เกิดข้อผิดพลาดในการจองห้อง');
+        }
+
+        // ถ้าการจองสำเร็จ, เปลี่ยนสถานะเป็น 'Rented' และ redirect ไปที่หน้า booking
+        res.redirect('/booking');  // หรือหน้าอื่นๆ ที่ต้องการให้แสดงผลการจอง
+    });
+});
+
+app.get('/booking-room/:id', authMiddleware, (req, res) => {
+    const roomId = req.params.id;  // ดึง room_id จาก URL
+    const tenantId = req.session.user?.user_id;  // ดึง user_id จาก session
+
+    // ตรวจสอบว่า tenantId มีค่าใน session หรือไม่
+    if (!tenantId) {
+        return res.status(401).send('คุณต้องเข้าสู่ระบบก่อน');
+    }
+
+    // คำสั่งดึงข้อมูลห้องจากฐานข้อมูล
+    const query = 'SELECT * FROM rooms WHERE room_id = ?';
+    db.get(query, [roomId], (err, room) => {
+        if (err) {
+            console.error("Database error: ", err);
+            return res.status(500).send('เกิดข้อผิดพลาดในการดึงข้อมูลห้อง');
+        }
+
+        if (!room) {
+            return res.status(404).send('ไม่พบห้องที่เลือก');
+        }
+
+        // เช็คสถานะห้อง หากห้องว่าง (status === "Available") ให้ทำการจอง
+        if (room.status !== 'Available') {
+            return res.status(400).send('ห้องนี้ไม่สามารถจองได้ในขณะนี้');
+        }
+
+        // อัพเดตข้อมูลห้องโดยการเพิ่ม tenant_id
+        const updateQuery = 'UPDATE rooms SET tenant_id = ? WHERE room_id = ?';
+        db.run(updateQuery, [tenantId, roomId], function(err) {
+            if (err) {
+                console.error("Database error: ", err);
+                return res.status(500).send('เกิดข้อผิดพลาดในการอัปเดตข้อมูลห้อง');
+            }
+
+            // ถ้าการอัปเดตสำเร็จ, ส่งผู้ใช้ไปยังหน้าที่จองสำเร็จ
+            res.redirect('/booking-confirmation'); // เปลี่ยนเป็นหน้าจองที่คุณต้องการแสดงหลังจากจองห้อง
+        });
+    });
+});
+
+
 
 // เริ่มต้น server
 app.listen(port, () => {
