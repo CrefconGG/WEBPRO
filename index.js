@@ -233,12 +233,7 @@ app.post('/archive-payment', authMiddleware, ownerMiddleware, (req, res) => {
 app.get('/payment-history', authMiddleware, (req, res) => {
     const tenantId = req.session.user?.user_id;
     const userRole = req.session.user?.role;
-
-    // ตรวจสอบว่า user มี tenantId และ role หรือไม่
-    if (!tenantId || !userRole) {
-        return res.status(400).send('ข้อมูลผู้ใช้ไม่ถูกต้อง');
-    }
-
+    
     let query = '';
     let params = [];
 
@@ -307,13 +302,16 @@ app.get('/rooms', authMiddleware, ownerMiddleware, (req, res) => {
 });
 // เพิ่มห้อง
 app.post('/add-room', (req, res) => {
-    const { room_id, price_per_month, additional_service_fee, maintenance_fee } = req.body;
+    const { price_per_month, internet_conditioner, air_conditioner } = req.body;
 
-    // เชื่อมต่อกับฐานข้อมูลเพื่อเพิ่มห้องใหม่
-    const query = `INSERT INTO rooms (room_id, price_per_month, additional_service_fee, maintenance_fee, tenant_id, status) 
-                   VALUES (?, ?, ?, ?, NULL, ?)`;
+    // ถ้าไม่ได้ติ๊ก จะเก็บเป็น 0
+    const internetConditionerValue = internet_conditioner ? 1 : 0;
+    const airConditionerValue = air_conditioner ? 1 : 0;
 
-    const params = [room_id, price_per_month, additional_service_fee, maintenance_fee, 'Available'];
+    const query = `INSERT INTO rooms (price_per_month, internet_conditioner, air_conditioner, tenant_id, status) 
+                   VALUES (?, ?, ?, 0, ?)`;
+
+    const params = [price_per_month, internetConditionerValue, airConditionerValue, 'Available'];
 
     db.run(query, params, function(err) {
         if (err) {
@@ -321,6 +319,49 @@ app.post('/add-room', (req, res) => {
             return res.status(500).send('เกิดข้อผิดพลาดในการเพิ่มห้อง');
         }
         res.redirect('/rooms');
+    });
+});
+// อัพเดทห่้อง
+app.post('/update-room', (req, res) => {
+    const { room_id, price_per_month, internet_conditioner, air_conditioner, status } = req.body;
+
+    const internetConditionerValue = internet_conditioner ? 1 : 0;
+    const airConditionerValue = air_conditioner ? 1 : 0;
+
+    let query = `UPDATE rooms SET price_per_month = ?, internet_conditioner = ?, air_conditioner = ?, status = ?`;
+    const params = [price_per_month, internetConditionerValue, airConditionerValue, status];
+
+    // ถ้าสถานะเป็น "ว่าง" ให้ตั้ง tenant_id เป็น 0
+    if (status === "Available") {
+        query += `, tenant_id = 0`;
+    }
+
+    query += ` WHERE room_id = ?`;
+    params.push(room_id);
+
+    db.run(query, params, function(err) {
+        if (err) {
+            console.error('Error updating room: ', err);
+            return res.status(500).send('เกิดข้อผิดพลาดในการแก้ไขข้อมูลห้อง');
+        }
+        res.redirect('/rooms');
+    });
+});
+
+// ลบห้อง
+app.get('/delete-room/:room_id', (req, res) => {
+    const roomId = req.params.room_id;
+
+    // ลบห้องจากฐานข้อมูล
+    const query = `DELETE FROM rooms WHERE room_id = ?`;
+    const params = [roomId];
+
+    db.run(query, params, function(err) {
+        if (err) {
+            console.error('Error deleting room: ', err);
+            return res.status(500).send('เกิดข้อผิดพลาดในการลบข้อมูลห้อง');
+        }
+        res.redirect('/rooms');  // กลับไปที่หน้าแสดงห้อง
     });
 });
 
