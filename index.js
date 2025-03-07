@@ -509,6 +509,64 @@ app.get('/delete-problem/:request_id', (req, res) => {
     });
 });
 
+// ดูสถานะ
+app.get('/status', (req, res) => {
+    const tenantId = req.session.user?.user_id;
+    const role = req.session.user?.role;
+
+    if (!tenantId) {
+        return res.status(403).send('คุณต้องล็อกอินเพื่อดูสถานะ');
+    }
+
+    const query = `
+        SELECT r.room_id, r.status AS room_status, r.price_per_month,
+               c.contract_id, c.start_date, c.end_date, c.status AS contract_status,
+               p.amount, p.payment_date, p.status AS payment_status,
+               rr.description, rr.status AS repair_status
+        FROM rooms r
+        LEFT JOIN rental_contracts c ON r.room_id = c.room_id
+        LEFT JOIN payments p ON c.contract_id = p.contract_id
+        LEFT JOIN repair_requests rr ON r.room_id = rr.room_id
+        WHERE r.tenant_id = ?;
+    `;
+
+    db.all(query, [tenantId], (err, rows) => {
+        if (err) {
+            console.error("Error fetching status: ", err);
+            return res.status(500).send('เกิดข้อผิดพลาดในการดึงข้อมูล');
+        }
+
+        // จัดการรวมข้อมูลที่ซ้ำกัน
+        const groupedData = rows.reduce((acc, item) => {
+            if (!acc[item.room_id]) {
+                acc[item.room_id] = { ...item, contracts: [], payments: [], repairs: [] };
+            }
+
+            // รวมข้อมูลที่ซ้ำกัน
+            if (item.contract_id) {
+                acc[item.room_id].contracts.push(item);
+            }
+            if (item.amount) {
+                acc[item.room_id].payments.push(item);
+            }
+            if (item.description) {
+                acc[item.room_id].repairs.push(item.description);
+            }
+
+            return acc;
+        }, {});
+
+        // เปลี่ยนรูปแบบข้อมูลให้เป็น array และเลือกเลขที่สัญญาล่าสุด
+        const formattedRows = Object.values(groupedData).map(item => ({
+            ...item,
+            contract_ids: item.contracts.length > 0 ? item.contracts.sort((a, b) => new Date(b.start_date) - new Date(a.start_date))[0].contract_id : 'ไม่มีสัญญา', // เลือกสัญญาที่เริ่มต้นล่าสุด
+            payment_amounts: item.payments.length > 0 ? item.payments.sort((a, b) => new Date(b.payment_date) - new Date(a.payment_date))[0].amount : 'ไม่มีการชำระ', // เลือกยอดชำระล่าสุด
+            repair_descriptions: item.repairs.join(', ') || 'ไม่มีแจ้งซ่อม'
+        }));
+
+        res.render('status', { data: formattedRows, role });
+    });
+});
 
 // เริ่มต้น server
 app.listen(port, () => {
