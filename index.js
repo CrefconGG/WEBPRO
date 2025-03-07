@@ -13,13 +13,14 @@ const port = 3000;
 const db = new sqlite3.Database('./database/users.db');
 
 // ตั้งค่า session
-app.use(
-    session({
-        secret: 'secret-key',
-        resave: false,
-        saveUninitialized: true,
-    })
-);
+app.use(session({
+    secret: 'myboy',
+    resave: false,
+    saveUninitialized: true,
+    cookie: { 
+        maxAge: 1000 * 60 * 60, // 1 ชั่วโมง
+    }
+}));
 
 // ตั้งค่า EJS และ middleware
 app.set('view engine', 'ejs');
@@ -173,6 +174,7 @@ app.get('/notify-rent', authMiddleware, ownerMiddleware, (req, res) => {
     });
 });
 
+// แจ้งชำระ
 app.post('/notify-rent', authMiddleware, ownerMiddleware, (req, res) => {
     const { contract_id, amount, electricity_bill, water_bill, payment_date } = req.body;
 
@@ -265,19 +267,11 @@ app.get('/payment-history', authMiddleware, (req, res) => {
         params = [];
     }
 
-    console.log("Query: ", query); // เพิ่มการพิมพ์ query ที่ใช้งาน
-    console.log("Params: ", params); // เพิ่มการพิมพ์ parameters ที่ใช้
-
     db.all(query, params, (err, payments) => {
         if (err) {
             console.error("Database error: ", err); // เพิ่มการพิมพ์ error จากฐานข้อมูล
             return res.status(500).send('เกิดข้อผิดพลาดในการดึงข้อมูลการชำระเงิน');
         }
-
-        if (!payments) {
-            return res.status(404).send('ไม่พบข้อมูลการชำระเงิน');
-        }
-
         res.render('payment-history', { payments, role: userRole });
     });
 });
@@ -384,11 +378,11 @@ app.get('/book', authMiddleware, (req, res) => {
     });
 });
 // จองห้อง
-app.post('/booking-room', (req, res) => {
-    const room_id = req.body.room_id; // รับ room_id ที่ผู้ใช้เลือก
-    const user_id = req.session.user?.user_id; // รับ user_id จาก session
+app.get('/booking-room/:room_id', (req, res) => {
+    const roomId = req.params.room_id;
+    const tenantId = req.session.user?.user_id;
 
-    if (!user_id) {
+    if (!tenantId) {
         return res.status(403).send('คุณต้องล็อกอินเพื่อจองห้อง');
     }
 
@@ -400,58 +394,64 @@ app.post('/booking-room', (req, res) => {
     `;
 
     // เรียกใช้คำสั่ง SQL
-    db.run(query, [user_id, room_id], function(err) {
+    db.run(query, [tenantId, roomId], function(err) {
         if (err) {
             console.error("Error booking room: ", err);
             return res.status(500).send('เกิดข้อผิดพลาดในการจองห้อง');
         }
-
-        // ถ้าการจองสำเร็จ, เปลี่ยนสถานะเป็น 'Rented' และ redirect ไปที่หน้า booking
-        res.redirect('/booking');  // หรือหน้าอื่นๆ ที่ต้องการให้แสดงผลการจอง
+        console.log("GG")
+        res.redirect('/book');
     });
 });
+// แจ้งซ้อม
+app.get('/request', authMiddleware, (req, res) => {
+    const tenantId = req.session.user?.user_id;
+    const userRole = req.session.user?.role;
+    
+    let query = '';
+    let params = [];
 
-app.get('/booking-room/:id', authMiddleware, (req, res) => {
-    const roomId = req.params.id;  // ดึง room_id จาก URL
-    const tenantId = req.session.user?.user_id;  // ดึง user_id จาก session
-
-    // ตรวจสอบว่า tenantId มีค่าใน session หรือไม่
-    if (!tenantId) {
-        return res.status(401).send('คุณต้องเข้าสู่ระบบก่อน');
+    if (userRole === 'user') {
+        query = `
+            SELECT 
+                repair_requests.request_id,
+                users.username AS tenant_name,
+                repair_requests.room_id,
+                repair_requests.description,
+                repair_requests.status,
+                repair_requests.estimated_completion_date
+            FROM 
+                repair_requests
+            JOIN 
+                users ON repair_requests.tenant_id = users.user_id
+            WHERE 
+                repair_requests.tenant_id = ?`;
+        params = [tenantId];
+    } else if (userRole === 'owner') {
+        query = `
+            SELECT 
+                repair_requests.request_id,
+                users.username AS tenant_name,
+                repair_requests.room_id,
+                repair_requests.description,
+                repair_requests.status,
+                repair_requests.estimated_completion_date
+            FROM 
+                repair_requests
+            JOIN 
+                users ON repair_requests.tenant_id = users.user_id`;
+        params = [];
     }
 
-    // คำสั่งดึงข้อมูลห้องจากฐานข้อมูล
-    const query = 'SELECT * FROM rooms WHERE room_id = ?';
-    db.get(query, [roomId], (err, room) => {
+    db.all(query, params, (err, repairRequests) => {
         if (err) {
             console.error("Database error: ", err);
-            return res.status(500).send('เกิดข้อผิดพลาดในการดึงข้อมูลห้อง');
+            return res.status(500).send('เกิดข้อผิดพลาดในการดึงข้อมูลแจ้งซ่อม');
         }
 
-        if (!room) {
-            return res.status(404).send('ไม่พบห้องที่เลือก');
-        }
-
-        // เช็คสถานะห้อง หากห้องว่าง (status === "Available") ให้ทำการจอง
-        if (room.status !== 'Available') {
-            return res.status(400).send('ห้องนี้ไม่สามารถจองได้ในขณะนี้');
-        }
-
-        // อัพเดตข้อมูลห้องโดยการเพิ่ม tenant_id
-        const updateQuery = 'UPDATE rooms SET tenant_id = ? WHERE room_id = ?';
-        db.run(updateQuery, [tenantId, roomId], function(err) {
-            if (err) {
-                console.error("Database error: ", err);
-                return res.status(500).send('เกิดข้อผิดพลาดในการอัปเดตข้อมูลห้อง');
-            }
-
-            // ถ้าการอัปเดตสำเร็จ, ส่งผู้ใช้ไปยังหน้าที่จองสำเร็จ
-            res.redirect('/booking-confirmation'); // เปลี่ยนเป็นหน้าจองที่คุณต้องการแสดงหลังจากจองห้อง
-        });
+        res.render('request', { repairRequests, role: userRole });
     });
 });
-
-
 
 // เริ่มต้น server
 app.listen(port, () => {

@@ -1,0 +1,78 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>แจ้งปัญหาและซ่อมบำรุง</title>
+    <link rel="stylesheet" href="/styles.css">
+    <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/css/bootstrap.min.css" rel="stylesheet">
+</head>
+<body>
+    <div class="d-flex">
+        <!-- Left Navbar -->
+        <%- include('menu') %>
+        
+        <!-- Main Content -->
+        <div class="container mt-5" id="main-content">
+            <h1 class="text-center">แจ้งปัญหาและซ่อมบำรุง</h1>
+            <p class="text-center">ผู้เช่าสามารถดูสถานะการแจ้งซ่อมได้ที่นี่</p>
+            <div class="card">
+                <div class="card-body">
+                    <form action="/notify-repair" method="post">
+                        <div class="mb-3">
+                            <label for="description" class="form-label">คำอธิบาย:</label>
+                            <textarea class="form-control" id="description" name="description" rows="3" required></textarea>
+                        </div>
+                        <button type="submit" class="btn btn-primary w-100">แจ้งปัญหา</button>
+                    </form>
+                </div>
+            </div>
+            <table class="table table-bordered table-striped">
+                <thead class="table-dark">
+                    <tr>
+                        <th>เลขที่แจ้งซ่อม</th>
+                        <th>ชื่อผู้เช่า</th>
+                        <th>ห้อง</th>
+                        <th>รายละเอียด</th>
+                        <th>สถานะ</th>
+                        <th>วันที่เสร็จประมาณ</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    <% if (repairRequests.length === 0) { %>
+                        <tr>
+                            <td colspan="6" class="text-center">ไม่พบข้อมูลการแจ้งซ่อม</td>
+                        </tr>
+                    <% } else { %>
+                        <% repairRequests.forEach(request => { %>
+                        <tr>
+                            <td><%= request.request_id %></td>
+                            <td><%= request.tenant_name %></td>
+                            <td><%= request.room_id %></td>
+                            <td><%= request.description %></td>
+                            <td>
+                                <% if (request.status === 'Waiting') { %>
+                                    <span class="badge bg-info text-dark">Waiting</span>
+                                <% } else if (request.status === 'Waiting') { %>
+                                    <span class="badge bg-success">Completed</span>
+                                <% } %>
+                            </td>
+                            <td>
+                                <% if (request.estimated_completion_date === 'Waiting') { %>
+                                    <span class="text-muted">Waiting</span>
+                                <% } else { %>
+                                    <%= request.estimated_completion_date %>
+                                <% } %>
+                            </td>
+                        </tr>
+                        <% }) %>
+                    <% } %>
+                </tbody>
+            </table>
+        </div>
+    </div>
+
+    <!-- Bootstrap JS -->
+    <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/js/bootstrap.bundle.min.js"></script>
+</body>
+</html>
