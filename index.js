@@ -123,12 +123,6 @@ app.get('/logout', (req, res) => {
     });
 });
 
-// จองห้องพัก
-app.get('/booking', authMiddleware, (req, res) => {
-    const role = req.session.user?.role || 'user'; // รับ role จาก session
-    res.render('booking', { role });
-});
-
 // เส้นทางแสดงรายการชำระเงิน
 app.get('/payment', authMiddleware, (req, res) => {
     const tenantId = req.session.user?.user_id;
@@ -325,9 +319,28 @@ app.post('/update-room', (req, res) => {
     let query = `UPDATE rooms SET price_per_month = ?, internet_conditioner = ?, air_conditioner = ?, status = ?`;
     const params = [price_per_month, internetConditionerValue, airConditionerValue, status];
 
-    // ถ้าสถานะเป็น "ว่าง" ให้ตั้ง tenant_id เป็น 0
+    // ถ้าสถานะเป็น "ว่าง" ให้ตั้ง tenant_id เป็น 0 และลบข้อมูลจาก rental_contracts และ repair_requests ที่มี room_id ตรงกัน
     if (status === "Available") {
         query += `, tenant_id = 0`;
+        
+        // เพิ่มคำสั่ง SQL สำหรับการลบข้อมูลที่มี room_id ตรงกันจากทั้งสองตาราง
+        const deleteRepairQuery = `DELETE FROM repair_requests WHERE room_id = ?`;
+        const deleteContractQuery = `DELETE FROM rental_contracts WHERE room_id = ?`;
+
+        // ลบข้อมูลจาก repair_requests
+        db.run(deleteContractQuery, [room_id], function (err) {
+            if (err) {
+                console.error('Error deleting rental contract: ', err);
+                return res.status(500).send('เกิดข้อผิดพลาดในการลบข้อมูลสัญญา');
+            }
+        });
+
+        db.run(deleteRepairQuery, [room_id], function (err) {
+            if (err) {
+                console.error('Error deleting repair request: ', err);
+                return res.status(500).send('เกิดข้อผิดพลาดในการลบข้อมูลการแจ้งซ่อม');
+            }
+        });
     }
 
     query += ` WHERE room_id = ?`;
@@ -341,6 +354,7 @@ app.post('/update-room', (req, res) => {
         res.redirect('/rooms');
     });
 });
+
 
 // ลบห้อง
 app.get('/delete-room/:room_id', (req, res) => {
