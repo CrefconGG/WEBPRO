@@ -8,7 +8,7 @@ const { authMiddleware, ownerMiddleware } = require('./middleware/auth');
 
 const app = express();
 const port = 3000;
-
+app.use(express.static('public'));
 // ตั้งค่า database
 const db = new sqlite3.Database('./database/users.db');
 
@@ -17,7 +17,7 @@ app.use(session({
     secret: 'myboy',
     resave: false,
     saveUninitialized: true,
-    cookie: { 
+    cookie: {
         maxAge: 1000 * 60 * 60, // 1 ชั่วโมง
     }
 }));
@@ -132,7 +132,7 @@ app.get('/booking', authMiddleware, (req, res) => {
 // เส้นทางแสดงรายการชำระเงิน
 app.get('/payment', authMiddleware, (req, res) => {
     const tenantId = req.session.user?.user_id;
-    
+
     db.all(
         `SELECT * FROM payments WHERE contract_id IN (SELECT contract_id FROM rental_contracts WHERE tenant_id = ?)`,
         [tenantId],
@@ -165,7 +165,7 @@ app.get('/notify-rent', authMiddleware, ownerMiddleware, (req, res) => {
     if (req.session.user?.role !== 'owner') {
         return res.status(403).send('คุณไม่มีสิทธิ์เข้าถึงฟังก์ชันนี้');
     }
-    
+
     db.all('SELECT * FROM payments WHERE status = "Waiting"', (err, payments) => {
         if (err) {
             return res.status(500).send('เกิดข้อผิดพลาดในการดึงข้อมูลการชำระเงิน');
@@ -235,7 +235,7 @@ app.post('/archive-payment', authMiddleware, ownerMiddleware, (req, res) => {
 app.get('/payment-history', authMiddleware, (req, res) => {
     const tenantId = req.session.user?.user_id;
     const userRole = req.session.user?.role;
-    
+
     let query = '';
     let params = [];
 
@@ -307,7 +307,7 @@ app.post('/add-room', (req, res) => {
 
     const params = [price_per_month, internetConditionerValue, airConditionerValue, 'Available'];
 
-    db.run(query, params, function(err) {
+    db.run(query, params, function (err) {
         if (err) {
             console.error('Error inserting room: ', err);
             return res.status(500).send('เกิดข้อผิดพลาดในการเพิ่มห้อง');
@@ -333,7 +333,7 @@ app.post('/update-room', (req, res) => {
     query += ` WHERE room_id = ?`;
     params.push(room_id);
 
-    db.run(query, params, function(err) {
+    db.run(query, params, function (err) {
         if (err) {
             console.error('Error updating room: ', err);
             return res.status(500).send('เกิดข้อผิดพลาดในการแก้ไขข้อมูลห้อง');
@@ -350,7 +350,7 @@ app.get('/delete-room/:room_id', (req, res) => {
     const query = `DELETE FROM rooms WHERE room_id = ?`;
     const params = [roomId];
 
-    db.run(query, params, function(err) {
+    db.run(query, params, function (err) {
         if (err) {
             console.error('Error deleting room: ', err);
             return res.status(500).send('เกิดข้อผิดพลาดในการลบข้อมูลห้อง');
@@ -394,7 +394,7 @@ app.get('/booking-room/:room_id', (req, res) => {
     `;
 
     // เรียกใช้คำสั่ง SQL
-    db.run(query, [tenantId, roomId], function(err) {
+    db.run(query, [tenantId, roomId], function (err) {
         if (err) {
             console.error("Error booking room: ", err);
             return res.status(500).send('เกิดข้อผิดพลาดในการจองห้อง');
@@ -407,7 +407,7 @@ app.get('/booking-room/:room_id', (req, res) => {
 app.get('/request', authMiddleware, (req, res) => {
     const tenantId = req.session.user?.user_id;
     const userRole = req.session.user?.role;
-    
+
     let query = '';
     let params = [];
 
@@ -418,8 +418,7 @@ app.get('/request', authMiddleware, (req, res) => {
                 users.username AS tenant_name,
                 repair_requests.room_id,
                 repair_requests.description,
-                repair_requests.status,
-                repair_requests.estimated_completion_date
+                repair_requests.status
             FROM 
                 repair_requests
             JOIN 
@@ -434,8 +433,7 @@ app.get('/request', authMiddleware, (req, res) => {
                 users.username AS tenant_name,
                 repair_requests.room_id,
                 repair_requests.description,
-                repair_requests.status,
-                repair_requests.estimated_completion_date
+                repair_requests.status
             FROM 
                 repair_requests
             JOIN 
@@ -452,6 +450,38 @@ app.get('/request', authMiddleware, (req, res) => {
         res.render('request', { repairRequests, role: userRole });
     });
 });
+
+// การแจ้งปัญหาซ่อม
+app.post('/request-problem', (req, res) => {
+    const { description } = req.body;
+
+    const tenantId = req.session.user?.user_id;
+
+    const stmt = db.prepare('INSERT INTO repair_requests (tenant_id, room_id, description, status) VALUES (?, ?, ?, ?)');
+    stmt.run(tenantId, tenantId, description, 'Waiting', (err) => {
+        if (err) {
+            console.error(err.message);
+        }
+        res.redirect('/request');
+    });
+});
+// ลบปัญหา
+app.get('/delete-problem/:request_id', (req, res) => {
+    const requestId = req.params.request_id;
+
+    // ลบห้องจากฐานข้อมูล
+    const query = `DELETE FROM repair_requests WHERE request_id = ?`;
+    const params = [requestId];
+
+    db.run(query, params, function (err) {
+        if (err) {
+            console.error('Error deleting room: ', err);
+            return res.status(500).send('เกิดข้อผิดพลาดในการลบข้อมูลห้อง');
+        }
+        res.redirect('/request'); // กลับไปที่หน้าแสดงห้อง
+    });
+});
+
 
 // เริ่มต้น server
 app.listen(port, () => {
