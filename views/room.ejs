@@ -51,7 +51,15 @@
                                         <% } else { %>
                                             <span class="badge bg-warning">ไม่พร้อมใช้งาน</span>
                                         <% } %>
-                                    </p>       
+                                    </p>
+                                    <a href="#" class="btn btn-primary" data-bs-toggle="modal" data-bs-target="#editRoomModal"
+                                        data-room-id="<%= room.room_id %>"
+                                        data-price-per-month="<%= room.price_per_month %>"
+                                        data-internet-conditioner="<%= room.internet_conditioner %>"
+                                        data-air-conditioner="<%= room.air_conditioner %>"
+                                        data-status="<%= room.status %>">
+                                        แก้ไขข้อมูลห้อง
+                                        </a>
                                 </div>
                                 <a href="/delete-room/<%= room.room_id %>" class="btn btn-danger">ลบห้อง</a>
                             </div>

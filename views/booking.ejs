@@ -24,7 +24,7 @@
                     </div>
                 <% } else { %>
                     <% rooms.forEach(room => { %>
-                        <div class="col-md-4 mb-4">
+                        <div class="col-md-4 mb-4 d-flex justify-content-start">
                             <div class="card">
                                 <div class="card-body">
                                     <h5 class="card-title">เลขห้อง: <%= room.room_id %></h5>
@@ -49,9 +49,15 @@
                                         <% } else { %>
                                             <span class="badge bg-danger">ไม่ว่าง</span>
                                         <% } %>
-                                    </p>       
+                                    </p>
                                 </div>
-                                <a href="/booking-room/<%= room.room_id %>" class="btn btn-success">จองห้อง</a>
+                                <% if (room.status === "Available" ) { %>
+                                    <a href="/booking-room/<%= room.room_id %>" class="btn btn-success">จองห้อง</a>
+                                <% } else { %>
+                                    <a href="#" class="btn btn-secondary disabled" aria-disabled="true" style="pointer-events: none;">
+                                        🔒 ห้องไม่ว่าง
+                                    </a>                                    
+                                <% } %>
                             </div>
                         </div>
                     <% }) %>
@@ -59,6 +65,5 @@
             </div>     
         </div>
     </div>     
-    <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/js/bootstrap.bundle.min.js"></script>
 </body>
 </html>

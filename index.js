@@ -386,23 +386,50 @@ app.get('/booking-room/:room_id', (req, res) => {
         return res.status(403).send('คุณต้องล็อกอินเพื่อจองห้อง');
     }
 
-    // คำสั่ง SQL เพื่ออัปเดต tenant_id และสถานะห้อง
-    const query = `
-        UPDATE rooms
-        SET tenant_id = ?, status = 'Rented'
-        WHERE room_id = ? AND status = 'Available'
-    `;
+    // วันที่เริ่มต้นและสิ้นสุดสัญญา (ตัวอย่าง: เริ่มวันนี้ + 1 ปี)
+    const startDate = new Date().toISOString().split('T')[0]; 
+    const endDate = new Date();
+    endDate.setFullYear(endDate.getFullYear() + 1);
+    const endDateFormatted = endDate.toISOString().split('T')[0];
 
-    // เรียกใช้คำสั่ง SQL
-    db.run(query, [tenantId, roomId], function (err) {
-        if (err) {
-            console.error("Error booking room: ", err);
-            return res.status(500).send('เกิดข้อผิดพลาดในการจองห้อง');
-        }
-        console.log("GG")
-        res.redirect('/book');
+    // เริ่ม transaction เพื่อให้ทั้งสองคำสั่งทำงานพร้อมกัน
+    db.serialize(() => {
+        db.run("BEGIN TRANSACTION");
+
+        // อัปเดตสถานะห้อง
+        const updateRoomQuery = `
+            UPDATE rooms
+            SET tenant_id = ?, status = 'Rented'
+            WHERE room_id = ? AND status = 'Available'
+        `;
+
+        db.run(updateRoomQuery, [tenantId, roomId], function (err) {
+            if (err) {
+                console.error("Error booking room: ", err);
+                db.run("ROLLBACK");
+                return res.status(500).send('เกิดข้อผิดพลาดในการจองห้อง');
+            }
+
+            // เพิ่มสัญญาเช่า
+            const insertContractQuery = `
+                INSERT INTO rental_contracts (tenant_id, room_id, start_date, end_date, status)
+                VALUES (?, ?, ?, ?, 'Active')
+            `;
+
+            db.run(insertContractQuery, [tenantId, roomId, startDate, endDateFormatted], function (err) {
+                if (err) {
+                    console.error("Error creating rental contract: ", err);
+                    db.run("ROLLBACK");
+                    return res.status(500).send('เกิดข้อผิดพลาดในการสร้างสัญญาเช่า');
+                }
+
+                db.run("COMMIT");
+                res.redirect('/book');
+            });
+        });
     });
 });
+
 // แจ้งซ้อม
 app.get('/request', authMiddleware, (req, res) => {
     const tenantId = req.session.user?.user_id;
@@ -478,7 +505,7 @@ app.get('/delete-problem/:request_id', (req, res) => {
             console.error('Error deleting room: ', err);
             return res.status(500).send('เกิดข้อผิดพลาดในการลบข้อมูลห้อง');
         }
-        res.redirect('/request'); // กลับไปที่หน้าแสดงห้อง
+        res.redirect('/request');
     });
 });
 
