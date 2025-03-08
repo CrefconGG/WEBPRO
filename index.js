@@ -46,12 +46,6 @@ app.get('/index', authMiddleware, (req, res) => {
     res.render('index', { role });
 });
 
-// เส้นทางเฉพาะ Owner
-app.get('/owner-dashboard', authMiddleware, ownerMiddleware, (req, res) => {
-    const role = req.session.user?.role || 'user'; // รับ role จาก session
-    res.render('owner-dashboard', { role });
-});
-
 // เส้นทางจัดการ login
 app.post('/login', (req, res) => {
     const { identifier, password } = req.body;
@@ -81,7 +75,7 @@ app.post('/login', (req, res) => {
     );
 });
 
-// เส้นทางแสดงหน้า register
+// เส้นทางแสดงหน้า registerS
 app.get('/register', (req, res) => {
     res.render('register');
 });
@@ -156,9 +150,6 @@ app.post('/payment/pay', authMiddleware, (req, res) => {
 
 // เส้นทางสำหรับเจ้าของเพิ่มรายการชำระ
 app.get('/notify-rent', authMiddleware, ownerMiddleware, (req, res) => {
-    if (req.session.user?.role !== 'owner') {
-        return res.status(403).send('คุณไม่มีสิทธิ์เข้าถึงฟังก์ชันนี้');
-    }
 
     db.all('SELECT * FROM payments WHERE status = "Waiting"', (err, payments) => {
         if (err) {
@@ -171,10 +162,6 @@ app.get('/notify-rent', authMiddleware, ownerMiddleware, (req, res) => {
 // แจ้งชำระ
 app.post('/notify-rent', authMiddleware, ownerMiddleware, (req, res) => {
     const { contract_id, amount, electricity_bill, water_bill, payment_date } = req.body;
-
-    if (req.session.user?.role !== 'owner') {
-        return res.status(403).send('คุณไม่มีสิทธิ์เข้าถึงฟังก์ชันนี้');
-    }
 
     db.run(
         `INSERT INTO payments (contract_id, amount, electricity_bill, water_bill, payment_date, status) 
@@ -192,10 +179,6 @@ app.post('/notify-rent', authMiddleware, ownerMiddleware, (req, res) => {
 // ย้ายการชำระเงินไปยังตาราง archived_payments
 app.post('/archive-payment', authMiddleware, ownerMiddleware, (req, res) => {
     const { payment_id } = req.body;
-
-    if (req.session.user?.role !== 'owner') {
-        return res.status(403).send('คุณไม่มีสิทธิ์เข้าถึงฟังก์ชันนี้');
-    }
 
     // ดึงข้อมูลการชำระเงินจาก payments
     db.get('SELECT * FROM payments WHERE payment_id = ? AND status = "Waiting"', [payment_id], (err, payment) => {
@@ -225,6 +208,7 @@ app.post('/archive-payment', authMiddleware, ownerMiddleware, (req, res) => {
             });
     });
 });
+
 // ประวัติการชำระ
 app.get('/payment-history', authMiddleware, (req, res) => {
     const tenantId = req.session.user?.user_id;
@@ -269,13 +253,10 @@ app.get('/payment-history', authMiddleware, (req, res) => {
         res.render('payment-history', { payments, role: userRole });
     });
 });
+
 // // จัดการห้อง
 app.get('/rooms', authMiddleware, ownerMiddleware, (req, res) => {
     const userRole = req.session.user?.role;
-
-    if (userRole !== 'owner') {
-        return res.status(403).send('คุณไม่มีสิทธิ์เข้าถึงฟังก์ชันนี้');
-    }
 
     // ดึงข้อมูลห้องพักจากฐานข้อมูล
     const query = 'SELECT * FROM rooms';
@@ -288,8 +269,9 @@ app.get('/rooms', authMiddleware, ownerMiddleware, (req, res) => {
         res.render('room', { rooms, role: userRole }); // ส่ง role ไปยัง EJS
     });
 });
+
 // เพิ่มห้อง
-app.post('/add-room', (req, res) => {
+app.post('/add-room', authMiddleware, ownerMiddleware, (req, res) => {
     const { price_per_month, internet_conditioner, air_conditioner } = req.body;
 
     // ถ้าไม่ได้ติ๊ก จะเก็บเป็น 0
@@ -309,8 +291,9 @@ app.post('/add-room', (req, res) => {
         res.redirect('/rooms');
     });
 });
+
 // อัพเดทห่้อง
-app.post('/update-room', (req, res) => {
+app.post('/update-room', authMiddleware, ownerMiddleware, (req, res) => {
     const { room_id, price_per_month, internet_conditioner, air_conditioner, status } = req.body;
 
     const internetConditionerValue = internet_conditioner ? 1 : 0;
@@ -327,7 +310,7 @@ app.post('/update-room', (req, res) => {
         const deleteRepairQuery = `DELETE FROM repair_requests WHERE room_id = ?`;
         const deleteContractQuery = `DELETE FROM rental_contracts WHERE room_id = ?`;
 
-        // ลบข้อมูลจาก repair_requests
+        // ลบข้อมูลจาก
         db.run(deleteContractQuery, [room_id], function (err) {
             if (err) {
                 console.error('Error deleting rental contract: ', err);
@@ -355,30 +338,39 @@ app.post('/update-room', (req, res) => {
     });
 });
 
-
-// ลบห้อง
-app.get('/delete-room/:room_id', (req, res) => {
+// ลบห้องพร้อมลบข้อมูลที่เกี่ยวข้อง
+app.get('/delete-room/:room_id', authMiddleware, ownerMiddleware, (req, res) => {
     const roomId = req.params.room_id;
 
-    // ลบห้องจากฐานข้อมูล
-    const query = `DELETE FROM rooms WHERE room_id = ?`;
-    const params = [roomId];
+    db.serialize(() => {
+        db.run("BEGIN TRANSACTION");
 
-    db.run(query, params, function (err) {
-        if (err) {
-            console.error('Error deleting room: ', err);
-            return res.status(500).send('เกิดข้อผิดพลาดในการลบข้อมูลห้อง');
-        }
-        res.redirect('/rooms');  // กลับไปที่หน้าแสดงห้อง
+        // ลบสัญญาเช่า
+        db.run(`DELETE FROM rental_contracts WHERE room_id = ?`, [roomId], (err) => {
+            if (err) {
+                console.error('Error deleting rental contracts: ', err);
+                db.run("ROLLBACK");
+                return res.status(500).send('เกิดข้อผิดพลาดในการลบสัญญาเช่า');
+            }
+
+            // ลบห้อง
+            db.run(`DELETE FROM rooms WHERE room_id = ?`, [roomId], (err) => {
+                if (err) {
+                    console.error('Error deleting room: ', err);
+                    db.run("ROLLBACK");
+                    return res.status(500).send('เกิดข้อผิดพลาดในการลบข้อมูลห้อง');
+                }
+
+                db.run("COMMIT");
+                res.redirect('/rooms');  // กลับไปที่หน้าแสดงห้อง
+            });
+        });
     });
 });
+
 // ห้องสำหรับจอง
 app.get('/book', authMiddleware, (req, res) => {
     const userRole = req.session.user?.role;
-
-    if (userRole !== 'user') {
-        return res.status(403).send('คุณไม่มีสิทธิ์เข้าถึงฟังก์ชันนี้');
-    }
 
     // ดึงข้อมูลห้องพักจากฐานข้อมูล
     const query = 'SELECT * FROM rooms';
@@ -391,16 +383,13 @@ app.get('/book', authMiddleware, (req, res) => {
         res.render('booking', { rooms, role: userRole }); // ส่ง role ไปยัง EJS
     });
 });
+
 // จองห้อง
-app.get('/booking-room/:room_id', (req, res) => {
+app.get('/booking-room/:room_id', authMiddleware, (req, res) => {
     const roomId = req.params.room_id;
     const tenantId = req.session.user?.user_id;
 
-    if (!tenantId) {
-        return res.status(403).send('คุณต้องล็อกอินเพื่อจองห้อง');
-    }
-
-    // วันที่เริ่มต้นและสิ้นสุดสัญญา (ตัวอย่าง: เริ่มวันนี้ + 1 ปี)
+    // วันที่เริ่มต้นและสิ้นสุดสัญญา
     const startDate = new Date().toISOString().split('T')[0]; 
     const endDate = new Date();
     endDate.setFullYear(endDate.getFullYear() + 1);
@@ -493,7 +482,7 @@ app.get('/request', authMiddleware, (req, res) => {
 });
 
 // การแจ้งปัญหาซ่อม
-app.post('/request-problem', (req, res) => {
+app.post('/request-problem', authMiddleware, (req, res) => {
     const { description } = req.body;
 
     const tenantId = req.session.user?.user_id;
@@ -506,8 +495,9 @@ app.post('/request-problem', (req, res) => {
         res.redirect('/request');
     });
 });
+
 // ลบปัญหา
-app.get('/delete-problem/:request_id', (req, res) => {
+app.get('/delete-problem/:request_id', authMiddleware, ownerMiddleware, (req, res) => {
     const requestId = req.params.request_id;
 
     // ลบห้องจากฐานข้อมูล
@@ -524,13 +514,9 @@ app.get('/delete-problem/:request_id', (req, res) => {
 });
 
 // ดูสถานะ
-app.get('/status', (req, res) => {
+app.get('/status', authMiddleware, (req, res) => {
     const tenantId = req.session.user?.user_id;
     const role = req.session.user?.role;
-
-    if (!tenantId) {
-        return res.status(403).send('คุณต้องล็อกอินเพื่อดูสถานะ');
-    }
 
     const query = `
         SELECT r.room_id, r.status AS room_status, r.price_per_month,
@@ -584,5 +570,5 @@ app.get('/status', (req, res) => {
 
 // เริ่มต้น server
 app.listen(port, () => {
-    console.log(`Server กำลังทำงานที่ http://localhost:${port}`);
+    console.log(`Server start with http://localhost:${port}`);
 });

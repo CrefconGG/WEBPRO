@@ -10,7 +10,7 @@ const ownerMiddleware = (req, res, next) => {
     if (req.session && req.session.user && req.session.user.role === 'owner') {
         next();
     } else {
-        res.status(403).send('คุณไม่มีสิทธิ์เข้าถึงหน้านี้');
+        return res.status(403).redirect('/login');
     }
 };
 
